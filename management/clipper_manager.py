@@ -8,8 +8,11 @@ import yaml
 import pprint
 import subprocess32 as subprocess
 import shutil
+import pip
 from sklearn import base
 from sklearn.externals import joblib
+from cStringIO import StringIO
+from pywrencloudpickle import CloudPickler
 
 MODEL_REPO = "/tmp/clipper-models"
 DOCKER_NW = "clipper_nw"
@@ -353,6 +356,70 @@ class Clipper:
         r = requests.post(url, headers=headers, data=req_json)
         return r.text
 
+    def deploy_predict_function(self,
+                     name,
+                     version,
+                     predict_function,
+                     labels,
+                     input_type,
+                     num_containers=1):
+
+        # Constants
+        relative_base_serializations_dir = "../predict_serializations"
+        default_python_container = "nishadsingh/predict_func_container"
+        packages_fname = "packages.txt"
+        predict_fname = "predict.txt"
+        deserialization_tools = "pywrencloudpickle.py"
+
+        # Get directory
+        base_serializations_dir = os.path.abspath(relative_base_serializations_dir)
+
+        # Serialize function
+        s = StringIO()
+        c = CloudPickler(s, 2)
+        c.dump(predict_function)
+        serialized_prediction_function = s.getvalue()
+
+        # Set up serialization directory
+        serialization_dir = "{base}/{dir}".format(base=base_serializations_dir, dir=name)
+        if not os.path.exists(serialization_dir):
+            os.makedirs(serialization_dir)
+
+        # Write out function serialization
+        func_file_path = "{dir}/{predict_fname}".format(dir=serialization_dir, predict_fname=predict_fname)
+        serialized_function_file = open(func_file_path, "w")
+        serialized_function_file.write(serialized_prediction_function)
+        serialized_function_file.close()
+        print("Serialized and wrote out predict function")
+        
+        # Serialize packages
+        installed_packages = pip.get_installed_distributions()
+        installed_packages_list = ["{pkg}=={version}".format(pkg=m.key, version=m.version) for m in installed_packages]
+        installed_packages_str = '\n'.join(installed_packages_list)
+
+        # Write out package serialization
+        package_file_path = "{dir}/{packages_fname}".format(dir=serialization_dir, packages_fname=packages_fname)
+        package_file = open(package_file_path, "w")
+        package_file.write(installed_packages_str)
+        package_file.close()
+        print("Serialized and wrote out packages")
+
+        # Give container tools to deserialize
+        shutil.copy(deserialization_tools, serialization_dir)
+        print("Supplied deserialization tools")
+
+        # Deploy function
+        return self.deploy_model(
+            name,
+            version,
+            serialization_dir,
+            default_python_container,
+            labels,
+            input_type,
+            num_containers)
+
+
+
     def deploy_model(self,
                      name,
                      version,
@@ -455,6 +522,7 @@ class Clipper:
             else:
                 print("Published model to Clipper")
                 # aggregate results of starting all containers
+                print(name, version, num_containers)
                 return all([
                     self.add_container(name, version)
                     for r in range(num_containers)
