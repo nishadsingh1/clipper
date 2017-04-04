@@ -37,12 +37,13 @@ class PredictContainer(rpc.ModelContainerBase):
     def __init__(self, path, input_type):
         self.path = path
         self.input_type = rpc.string_to_input_type(input_type)
+        print("in predict container!!!")
 
         packages_fname = "packages.txt"
         predict_fname = "predict.txt"
 
         packages_path = "{dir}/{packages_fname}".format(dir=path, packages_fname=packages_fname)
-        install_dependencies(packages_path)
+        # install_dependencies(packages_path)
         print("Installed dependencies")
 
         predict_path = "{dir}/{predict_fname}".format(dir=path, predict_fname=predict_fname)

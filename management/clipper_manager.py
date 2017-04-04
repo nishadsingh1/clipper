@@ -366,10 +366,11 @@ class Clipper:
 
         # Constants
         relative_base_serializations_dir = "../predict_serializations"
-        default_python_container = "nishadsingh/predict_func_container"
+        default_python_container = "nishadsingh/predict_func_container:latest"
         packages_fname = "packages.txt"
         predict_fname = "predict.txt"
         deserialization_tools = "pywrencloudpickle.py"
+        environment = "environment.txt"
 
         # Get directory
         base_serializations_dir = os.path.abspath(relative_base_serializations_dir)
@@ -406,6 +407,7 @@ class Clipper:
 
         # Give container tools to deserialize
         shutil.copy(deserialization_tools, serialization_dir)
+        shutil.copy(environment, serialization_dir)
         print("Supplied deserialization tools")
 
         # Deploy function
@@ -521,6 +523,7 @@ class Clipper:
                 return False
             else:
                 print("Published model to Clipper")
+                print("here")
                 # aggregate results of starting all containers
                 return all([
                     self.add_container(name, version)
@@ -575,6 +578,7 @@ class Clipper:
                     mn=model_name,
                     mv=model_version,
                     mip=model_input_type))
+            print(add_container_cmd)
             result = self._execute_root(add_container_cmd)
             return result.return_code == 0
 

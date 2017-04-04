@@ -2,8 +2,9 @@ FROM clipper/py-rpc:latest
 
 MAINTAINER Nishad Singh <nishadsingh@gmail.com>
 
-COPY noop_container.py /container/
+COPY predict_container.py /container/
+COPY predict_container_setup.py /container/
 
-CMD ["python", "/container/noop_container.py"]
+CMD ["python", "/container/predict_container_setup.py"]
 
 # vim: set filetype=dockerfile:

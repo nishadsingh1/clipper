@@ -1,9 +1,0 @@
-FROM clipper/py-rpc:latest
-
-MAINTAINER Nishad Singh <nishadsingh@gmail.com>
-
-COPY predict_container.py /container/
-
-CMD ["python", "/container/predict_container.py"]
-
-# vim: set filetype=dockerfile:
