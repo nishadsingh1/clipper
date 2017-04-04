@@ -130,4 +130,44 @@ TEST_F(ManagementFrontendTest, TestAddModelMalformedJson) {
   ASSERT_THROW(rh_.add_model(add_model_json), json_parse_error);
 }
 
+TEST_F(ManagementFrontendTest, TestDeleteModelCorrect) {
+  std::string add_model_json = R"(
+    {
+      "model_name": "mymodelname",
+      "model_version": 4,
+      "labels": ["label1", "label2", "label3"],
+      "input_type": "integers",
+      "container_name": "clipper/sklearn_cifar",
+      "model_data_path": "/tmp/model/repo/m/1"
+    }
+  )";
+
+  ASSERT_EQ(rh_.add_model(add_model_json), "Success!");
+
+  std::string delete_model_json = R"(
+    {
+      "model_name": "mymodelname",
+      "model_version": 4
+    }
+  )";
+
+  ASSERT_EQ(rh_.delete_model(delete_model_json), "Success!");
+
+  auto result = get_model(*redis_, std::make_pair("mymodelname", 4));
+  // Because the model should not exist in redis, an empty map should be
+  // returned.
+  ASSERT_EQ(result.size(), static_cast<size_t>(0));
+}
+
+TEST_F(ManagementFrontendTest, TestDeleteModelMalformedJson) {
+  std::string delete_model_json = R"(
+    {
+      "model_name": "mymodelname",
+      "model_version": [5
+    }
+  )";
+
+  ASSERT_THROW(rh_.delete_model(delete_model_json), json_parse_error);
+}
+
 }  // namespace

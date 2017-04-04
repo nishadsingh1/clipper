@@ -39,6 +39,7 @@ const std::string LOGGING_TAG_MANAGEMENT_FRONTEND = "MGMTFRNTD";
 const std::string ADMIN_PATH = "^/admin";
 const std::string ADD_APPLICATION = ADMIN_PATH + "/add_app$";
 const std::string ADD_MODEL = ADMIN_PATH + "/add_model$";
+const std::string DELETE_MODEL = ADMIN_PATH + "/delete_model$";
 
 // const std::string ADD_CONTAINER = ADMIN_PATH + "/add_container$";
 const std::string GET_METRICS = ADMIN_PATH + "/metrics$";
@@ -54,6 +55,13 @@ const std::string APPLICATION_JSON_SCHEMA = R"(
    "input_type" := "integers" | "bytes" | "floats" | "doubles" | "strings",
    "selection_policy" := string,
    "latency_slo_micros" := int
+  }
+)";
+
+const std::string MODEL_ID_JSON_SCHEMA = R"(
+  {
+   "model_name" := string,
+   "model_version" := int
   }
 )";
 
@@ -165,6 +173,23 @@ class RequestHandler {
           }
         });
     server_.add_endpoint(
+        DELETE_MODEL, "POST",
+        [this](std::shared_ptr<HttpServer::Response> response,
+               std::shared_ptr<HttpServer::Request> request) {
+            try {
+                std::string result = delete_model(request->content.string());
+                respond_http(result, "200 OK", response);
+            } catch (const json_parse_error& e) {
+                std::string err_msg = json_error_msg(e.what(), MODEL_ID_JSON_SCHEMA);
+                respond_http(err_msg, "400 Bad Request", response);
+            } catch (const json_semantic_error& e) {
+                std::string err_msg = json_error_msg(e.what(), MODEL_ID_JSON_SCHEMA);
+                respond_http(err_msg, "400 Bad Request", response);
+            } catch (const std::invalid_argument& e) {
+                respond_http(e.what(), "400 Bad Request", response);
+            }
+        });
+    server_.add_endpoint(
         GET_SELECTION_STATE, "POST",
         [this](std::shared_ptr<HttpServer::Response> response,
                std::shared_ptr<HttpServer::Request> request) {
@@ -255,6 +280,29 @@ class RequestHandler {
       return "Success!";
     } else {
       return "Error adding model to Redis.";
+    }
+  }
+
+  /**
+  * Creates an endpoint that listens for requests to delete existing models from
+  * Clipper.
+  *
+  * JSON format:
+  * {
+  *  "model_name" := string,
+  *  "model_version" := int,
+  * }
+  */
+  std::string delete_model(const std::string& json) {
+    rapidjson::Document d;
+    parse_json(json, d);
+
+    VersionedModelId model_id = std::make_pair(get_string(d, "model_name"),
+                                               get_int(d, "model_version"));
+    if (clipper::redis::delete_model(redis_connection_, model_id)) {
+        return "Success!";
+    } else {
+        return "Error deleting model from Redis.";
     }
   }
 
