@@ -367,10 +367,9 @@ class Clipper:
         # Constants
         relative_base_serializations_dir = "../predict_serializations"
         default_python_container = "nishadsingh/predict_func_container:latest"
-        packages_fname = "packages.txt"
-        predict_fname = "predict.txt"
-        deserialization_tools = "pywrencloudpickle.py"
-        environment = "environment.txt"
+        predict_fname = "predict_fname.txt"
+        deserialization_tools_fname = "pywrencloudpickle.py"
+        environment_fname = "environment.yml"
 
         # Get directory
         base_serializations_dir = os.path.abspath(relative_base_serializations_dir)
@@ -393,22 +392,13 @@ class Clipper:
         serialized_function_file.close()
         print("Serialized and wrote out predict function")
         
-        # Serialize packages
-        installed_packages = pip.get_installed_distributions()
-        installed_packages_list = ["{pkg}=={version}".format(pkg=m.key, version=m.version) for m in installed_packages]
-        installed_packages_str = '\n'.join(installed_packages_list)
-
-        # Write out package serialization
-        package_file_path = "{dir}/{packages_fname}".format(dir=serialization_dir, packages_fname=packages_fname)
-        package_file = open(package_file_path, "w")
-        package_file.write(installed_packages_str)
-        package_file.close()
-        print("Serialized and wrote out packages")
+        # Export Anaconda environment
+        subprocess.call("PIP_FORMAT=legacy conda env export >> {env_fname}".format(env_fname=environment_fname), shell=True)
 
         # Give container tools to deserialize
-        shutil.copy(deserialization_tools, serialization_dir)
-        shutil.copy(environment, serialization_dir)
-        print("Supplied deserialization tools")
+        shutil.copy(deserialization_tools_fname, serialization_dir)
+        shutil.copy(environment_fname, serialization_dir)
+        print("Supplied environment details and function deserialization tools")
 
         # Deploy function
         return self.deploy_model(

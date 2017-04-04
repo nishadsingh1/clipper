@@ -2,7 +2,6 @@ from __future__ import print_function
 import rpc
 import os
 import sys
-import pip
 
 import numpy as np
 np.set_printoptions(threshold=np.nan)
@@ -14,66 +13,40 @@ def load_predict_func(file_path):
     with open(file_path, 'r') as serialized_func_file:
         return pywrencloudpickle.load(serialized_func_file)
 
-def install_dependencies(file_path):
-    with open(file_path, 'r') as dependencies_file:
-        dependencies_list = dependencies_file.readlines()
-
-    required_packages = map(lambda s: s.strip(), dependencies_list)
-    installed_packages = pip.get_installed_distributions()
-    installed_packages_list = [
-        "{pkg}=={version}".format(
-            pkg=m.key,
-            version=m.version) 
-        for m in installed_packages]
-    needed_pakcages = set(required_packages) - set(installed_packages_list)
-
-    for package in needed_pakcages:
-        try:
-            pip.main(['install', package])
-        except:
-            print("Had trouble installing {pkg}".format(pkg=package))
-
 class PredictContainer(rpc.ModelContainerBase):
-    def __init__(self, path, input_type):
-        self.path = path
-        self.input_type = rpc.string_to_input_type(input_type)
-        print("in predict container!!!")
+    def __init__(self, path):
+        # self.path = path
+        # self.input_type = rpc.string_to_input_type(input_type)
 
-        packages_fname = "packages.txt"
         predict_fname = "predict.txt"
-
-        packages_path = "{dir}/{packages_fname}".format(dir=path, packages_fname=packages_fname)
-        # install_dependencies(packages_path)
-        print("Installed dependencies")
-
         predict_path = "{dir}/{predict_fname}".format(dir=path, predict_fname=predict_fname)
 
         self.predict_func = load_predict_func(predict_path)
         print("Loaded prediction function")
 
     def predict_ints(self, inputs):
-        if self.input_type != rpc.INPUT_TYPE_INTS:
-            pass
+        # if self.input_type != rpc.INPUT_TYPE_INTS:
+        #     pass
         return self.predict_func(inputs)
 
     def predict_floats(self, inputs):
-        if self.input_type != rpc.INPUT_TYPE_FLOATS:
-            pass
+        # if self.input_type != rpc.INPUT_TYPE_FLOATS:
+        #     pass
         return self.predict_func(inputs)
 
     def predict_doubles(self, inputs):
-        if self.input_type != rpc.INPUT_TYPE_DOUBLES:
-            pass
+        # if self.input_type != rpc.INPUT_TYPE_DOUBLES:
+        #     pass
         return self.pre(inputs)
 
     def predict_bytes(self, inputs):
-        if self.input_type != rpc.INPUT_TYPE_BYTES:
-            pass
+        # if self.input_type != rpc.INPUT_TYPE_BYTES:
+        #     pass
         return self.predict_func(inputs)
 
     def predict_strings(self, inputs):
-        if self.input_type != rpc.INPUT_TYPE_STRINGS:
-            pass
+        # if self.input_type != rpc.INPUT_TYPE_STRINGS:
+        #     pass
         return self.predict_func(inputs)
 
 
@@ -114,5 +87,5 @@ if __name__ == "__main__":
 
     model_path = os.environ["CLIPPER_MODEL_PATH"]
 
-    model = PredictContainer(model_path, input_type)
+    model = PredictContainer(model_path)
     rpc.start(model, ip, port, model_name, model_version, input_type)
