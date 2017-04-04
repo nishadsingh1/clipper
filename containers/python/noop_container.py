@@ -7,6 +7,7 @@ import numpy as np
 
 class NoopContainer(rpc.ModelContainerBase):
     def __init__(self):
+        print("In NoopContainer init")
         pass
 
     def predict_ints(self, inputs):
