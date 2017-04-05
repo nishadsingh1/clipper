@@ -515,6 +515,7 @@ class Clipper:
                 print("Published model to Clipper")
                 print("here")
                 # aggregate results of starting all containers
+                print(name, version, num_containers)
                 return all([
                     self.add_container(name, version)
                     for r in range(num_containers)
