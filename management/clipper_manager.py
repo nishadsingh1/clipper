@@ -357,22 +357,22 @@ class Clipper:
         return r.text
 
     def deploy_predict_function(self,
-                     name,
-                     version,
-                     predict_function,
-                     labels,
-                     input_type,
-                     num_containers=1):
+                                name,
+                                version,
+                                predict_function,
+                                labels,
+                                input_type,
+                                num_containers=1):
 
         # Constants
-        relative_base_serializations_dir = "../predict_serializations"
+        relative_base_serializations_dir = "predict_serializations"
         default_python_container = "nishadsingh/predict_func_container:latest"
-        predict_fname = "predict_fname.txt"
-        deserialization_tools_fname = "pywrencloudpickle.py"
+        predict_fname = "predict.txt"
         environment_fname = "environment.yml"
 
         # Get directory
-        base_serializations_dir = os.path.abspath(relative_base_serializations_dir)
+        base_serializations_dir = os.path.abspath(
+            relative_base_serializations_dir)
 
         # Serialize function
         s = StringIO()
@@ -381,36 +381,33 @@ class Clipper:
         serialized_prediction_function = s.getvalue()
 
         # Set up serialization directory
-        serialization_dir = "{base}/{dir}".format(base=base_serializations_dir, dir=name)
+        serialization_dir = "{base}/{dir}".format(
+            base=base_serializations_dir, dir=name)
         if not os.path.exists(serialization_dir):
             os.makedirs(serialization_dir)
 
         # Write out function serialization
-        func_file_path = "{dir}/{predict_fname}".format(dir=serialization_dir, predict_fname=predict_fname)
+        func_file_path = "{dir}/{predict_fname}".format(
+            dir=serialization_dir, predict_fname=predict_fname)
         serialized_function_file = open(func_file_path, "w")
         serialized_function_file.write(serialized_prediction_function)
         serialized_function_file.close()
-        print("Serialized and wrote out predict function")
-        
-        # Export Anaconda environment
-        subprocess.call("PIP_FORMAT=legacy conda env export >> {env_fname}".format(env_fname=environment_fname), shell=True)
+        print("Serialized and supplied predict function")
 
-        # Give container tools to deserialize
-        shutil.copy(deserialization_tools_fname, serialization_dir)
+        # Export Anaconda environment
+        subprocess.call(
+            "PIP_FORMAT=legacy conda env export >> {environment_fname}".format(
+                environment_fname=environment_fname),
+            shell=True)
+
+        # Give container environment details
         shutil.copy(environment_fname, serialization_dir)
-        print("Supplied environment details and function deserialization tools")
+        print("Supplied environment details")
 
         # Deploy function
-        return self.deploy_model(
-            name,
-            version,
-            serialization_dir,
-            default_python_container,
-            labels,
-            input_type,
-            num_containers)
-
-
+        return self.deploy_model(name, version, serialization_dir,
+                                 default_python_container, labels, input_type,
+                                 num_containers)
 
     def deploy_model(self,
                      name,
