@@ -20,7 +20,6 @@
 #include <clipper/rpc_service.hpp>
 #include <clipper/threadpool.hpp>
 #include <clipper/util.hpp>
-#include "../../../logging_constants.hpp"
 
 namespace clipper {
 
@@ -126,12 +125,11 @@ class ModelQueue {
   }
 
   std::vector<PredictTask> get_batch(
-      std::function<int(Deadline)> &&get_batch_size,
-      clipper::metrics::Histogram &latency_histogram) {
+      std::function<int(Deadline)> &&get_batch_size) {
     std::unique_lock<std::mutex> lock(queue_mutex_);
-    remove_tasks_with_elapsed_deadlines(latency_histogram);
+    remove_tasks_with_elapsed_deadlines();
     queue_not_empty_condition_.wait(lock, [this]() { return !queue_.empty(); });
-    remove_tasks_with_elapsed_deadlines(latency_histogram);
+    remove_tasks_with_elapsed_deadlines();
     Deadline deadline = queue_.top().first;
     int max_batch_size = get_batch_size(deadline);
     std::vector<PredictTask> batch;
@@ -156,27 +154,14 @@ class ModelQueue {
   // Deletes tasks with deadlines prior or equivalent to the
   // current system time. This method should only be called
   // when a unique lock on the queue_mutex is held.
-  void remove_tasks_with_elapsed_deadlines(
-      clipper::metrics::Histogram &latency_histogram) {
-    if (IGNORE_OVERDUE_TASKS) {
-      return;
-    }
+  void remove_tasks_with_elapsed_deadlines() {
     std::chrono::time_point<std::chrono::system_clock> current_time =
         std::chrono::system_clock::now();
 
-    long cutoff_latency_micros = static_cast<long>(
-        latency_histogram.percentile(LATENCY_CUTOFF_PERCENTAGE));
-
     while (!queue_.empty()) {
       Deadline first_deadline = queue_.top().first;
-      auto remaining_time = first_deadline - current_time;
-      long remaining_time_micros =
-          std::chrono::duration_cast<std::chrono::microseconds>(remaining_time)
-              .count();
 
-      if ((USE_LATENCY_CUTOFF &&
-           remaining_time_micros <= cutoff_latency_micros) ||
-          (!USE_LATENCY_CUTOFF && first_deadline <= current_time)) {
+      if (first_deadline <= current_time) {
         // If a task's deadline is too soon, we should not process it
         queue_.pop();
       } else {
@@ -417,15 +402,8 @@ class TaskExecutor {
     // goes out of scope.
     l.unlock();
 
-    std::vector<PredictTask> batch = current_model_queue->get_batch(
-        [container](Deadline deadline) {
-          if (USE_FIXED_BATCH_SIZE) {
-            return FIXED_BATCH_SIZE;
-            ;
-          }
-          return container->get_batch_size(deadline);
-        },
-        container->latency_hist_);
+    std::vector<PredictTask> batch = current_model_queue->get_batch([container](
+        Deadline deadline) { return container->get_batch_size(deadline); });
 
     if (batch.size() > 0) {
       // move the lock up here, so that nothing can pull from the
@@ -510,7 +488,7 @@ class TaskExecutor {
         std::chrono::duration_cast<std::chrono::microseconds>(task_latency)
             .count();
     if (processing_container != nullptr) {
-      processing_container->update_container_stats(1, task_latency_micros);
+      processing_container->update_throughput(1, task_latency_micros);
     } else {
       log_error(LOGGING_TAG_TASK_EXECUTOR,
                 "Could not find processing container. Something is wrong.");

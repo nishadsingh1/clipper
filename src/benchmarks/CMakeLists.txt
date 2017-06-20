@@ -22,11 +22,3 @@ target_link_libraries(rpcbench clipper cxxopts)
 add_executable(rpctest src/rpc_protocol_test.cpp)
 
 target_link_libraries(rpctest clipper cxxopts)
-
-
-##################################
-# Throughput with Noop Model Testing executable
-
-add_executable(noop_bench src/noop_bench.cpp src/bench_utils.cpp src/include/bench_utils.hpp)
-
-target_link_libraries(noop_bench clipper boost cxxopts)
