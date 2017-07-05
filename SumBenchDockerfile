@@ -4,6 +4,8 @@ ARG model_version=1
 
 COPY containers/python/sum_container.py /containers/python/
 COPY /bench/setup_sum_bench_docker.sh /bench/
+COPY /bench/setup_bench_arg_exporter.sh /bench/
+COPY /bench/export_aws_ip.sh /bench/
 
 CMD ["/bench/setup_sum_bench_docker.sh"]
 
