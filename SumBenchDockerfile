@@ -1,7 +1,8 @@
 FROM clipper/py-rpc:latest
+ARG model_name=bench_sum
+ARG model_version=1
 
 COPY containers/python/sum_container.py /containers/python/
-
 COPY /bench/setup_sum_bench_docker.sh /bench/
 
 CMD ["/bench/setup_sum_bench_docker.sh"]
