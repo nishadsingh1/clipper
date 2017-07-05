@@ -1,11 +1,10 @@
 FROM clipper/py-rpc:latest
+ARG model_name=bench_noop
+ARG model_version=1
 
-MAINTAINER Dan Crankshaw <dscrankshaw@gmail.com>
-
-COPY containers/python/rpc.py /containers/python/
 COPY containers/python/noop_container.py /containers/python/
 COPY /bench/setup_noop_bench_docker.sh /bench/
 
-CMD ["/bench/setup_noop_bench_docker.sh"]
+CMD ["/bench/setup_noop_bench_docker.sh $model_name $model_version"]
 
 # vim: set filetype=dockerfile:

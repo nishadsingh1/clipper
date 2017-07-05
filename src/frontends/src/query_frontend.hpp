@@ -103,7 +103,6 @@ class AppMetrics {
   AppMetrics& operator=(const AppMetrics&) = default;
 
   AppMetrics(AppMetrics&&) = default;
-
   AppMetrics& operator=(AppMetrics&&) = default;
 
   std::string app_name_;

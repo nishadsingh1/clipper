@@ -1,5 +1,7 @@
+#include <fstream>
 #include <functional>
 #include <iostream>
+#include <random>
 #include <vector>
 
 #include <boost/thread.hpp>
@@ -11,8 +13,6 @@
 #include <clipper/json_util.hpp>
 #include <clipper/logging.hpp>
 #include <clipper/query_processor.hpp>
-#include <fstream>
-#include <random>
 
 #include "include/bench_utils.hpp"
 
@@ -23,7 +23,7 @@ const std::string REQUEST_BATCH_SIZE = "request_batch_size";
 const std::string REQUEST_BATCH_DELAY_MICROS = "request_batch_delay_micros";
 const std::string LATENCY_OBJECTIVE = "latency_objective";
 const std::string REPORT_DELAY_SECONDS = "report_delay_seconds";
-const std::string REPORTS_PATH = "reports_path";
+const std::string BENCHMARK_REPORT_PATH = "benchmark_report_path";
 const std::string POISSON_DELAY = "poisson_delay";
 const std::string MODEL_NAME = "model_name";
 const std::string MODEL_VERSION = "model_version";
@@ -47,8 +47,8 @@ std::string _get_window_str(int window_size, int num_iters) {
 
 void send_predictions(std::unordered_map<std::string, std::string> &config,
                       QueryProcessor &qp, std::vector<std::vector<double>> data,
-                      std::vector<double> labels, BenchMetrics &bench_metrics,
-                      int thread_id, std::vector<int> indices) {
+                      BenchMetrics &bench_metrics, int thread_id,
+                      std::vector<int> indices) {
   int num_batches = get_int(NUM_BATCHES, config);
   int request_batch_size = get_int(REQUEST_BATCH_SIZE, config);
   long batch_delay_micros = get_long(REQUEST_BATCH_DELAY_MICROS, config);
@@ -63,65 +63,45 @@ void send_predictions(std::unordered_map<std::string, std::string> &config,
   std::default_random_engine generator;
   std::poisson_distribution<int> distribution(batch_delay_micros);
   long delay_micros;
-  int data_index;
-  double label;
-  std::vector<double> input_vector_data;
+  int data_index, query_num;
 
   for (int j = 0; j < num_batches; j++) {
-    std::vector<boost::future<Response>> futures;
-    std::vector<double> future_labels;
     for (int i = 0; i < request_batch_size; i++) {
       // Select datapoint
-      data_index = indices[(j * request_batch_size + i) % num_datapoints];
+      query_num = j * request_batch_size + i;
+      data_index = indices[query_num % num_datapoints];
       query_vec = data[data_index];
-      label = labels[data_index];
 
       if (prevent_cache_hits) {
         // Modify it to be epoch and thread-specific
-        query_vec[0] = (j * request_batch_size + i) / num_datapoints;
+        query_vec[0] = query_num / num_datapoints;
         query_vec[1] = thread_id;
       }
 
-      // Copy the datapoint into a new shared pointer
       std::shared_ptr<Input> input = std::make_shared<DoubleVector>(query_vec);
+      Query q = {TEST_APPLICATION_LABEL,
+                 UID,
+                 input,
+                 latency_objective,
+                 clipper::DefaultOutputSelectionPolicy::get_name(),
+                 {VersionedModelId(model_name, model_version)}};
 
-      boost::future<Response> prediction =
-          qp.predict({TEST_APPLICATION_LABEL,
-                      UID,
-                      input,
-                      latency_objective,
-                      clipper::DefaultOutputSelectionPolicy::get_name(),
-                      {VersionedModelId(model_name, model_version)}});
+      boost::future<Response> prediction = qp.predict(q);
+      bench_metrics.request_throughput_->mark(1);
 
-      futures.push_back(std::move(prediction));
-      future_labels.push_back(std::move(label));
-      bench_metrics.send_rate_->mark(1);
-    }
+      prediction.then([app_metrics](boost::future<Response> f) {
+        Response r = f.get();
 
-    std::shared_ptr<std::atomic_int> completed =
-        std::make_shared<std::atomic_int>(0);
-    std::pair<boost::future<void>, std::vector<boost::future<Response>>>
-        results = future::when_all(std::move(futures), completed);
-    results.first.get();
-    for (int i = 0; i < static_cast<int>(results.second.size()); i++) {
-      boost::future<Response> &f = results.second[i];
-      Response r = f.get();
-
-      // Update metrics
-      if (r.output_is_default_) {
-        bench_metrics.default_pred_ratio_->increment(1, 1);
-      } else {
-        bench_metrics.default_pred_ratio_->increment(0, 1);
-      }
-      bench_metrics.latency_->insert(r.duration_micros_);
-      bench_metrics.num_predictions_->increment(1);
-      bench_metrics.throughput_->mark(1);
-
-      if (std::stod(r.output_.y_hat_) == future_labels[i]) {
-        bench_metrics.accuracy_ratio_->increment(1, 1);
-      } else {
-        bench_metrics.accuracy_ratio_->increment(0, 1);
-      }
+        // Update metrics
+        if (r.output_is_default_) {
+          bench_metrics.default_pred_ratio_->increment(1, 1);
+        } else {
+          bench_metrics.default_pred_ratio_->increment(0, 1);
+        }
+        bench_metrics.latency_->insert(r.duration_micros_);
+        bench_metrics.num_predictions_->increment(1);
+        bench_metrics.throughput_->mark(1);
+      });
     }
 
     delay_micros =
@@ -135,10 +115,10 @@ void report_and_clear_metrics(
   int report_delay_seconds = get_int(REPORT_DELAY_SECONDS, config);
   std::string latency_obj_string = get_str(LATENCY_OBJECTIVE, config);
   std::string batch_delay_string = get_str(REQUEST_BATCH_DELAY_MICROS, config);
-  std::string reports_path = get_str(REPORTS_PATH, config);
+  std::string reports_path = get_str(BENCHMARK_REPORT_PATH, config);
 
   // Write out run details
-  std::ofstream reports(reports_path);
+  std::ofstream reports(BENCHMARK_REPORT_PATH);
   std::stringstream ss;
   ss << "---Configuration---" << std::endl;
   for (auto it : config) ss << it.first << ": " << it.second << std::endl;
@@ -183,9 +163,7 @@ void run_benchmark(std::unordered_map<std::string, std::string> &config) {
   std::string cifar_data_path = get_str(CIFAR_DATA_PATH, config);
   std::unordered_map<int, std::vector<std::vector<double>>> cifar_data =
       load_cifar(cifar_data_path);
-  auto concatenated_datapoints = concatenate_cifar_datapoints(cifar_data);
-  auto datapoints = concatenated_datapoints.first;
-  auto labels = concatenated_datapoints.second;
+  auto datapoints = concatenate_cifar_datapoints(cifar_data);
 
   int num_threads = get_int(NUM_THREADS, config);
   size_t num_datapoints = datapoints.size();
@@ -193,7 +171,7 @@ void run_benchmark(std::unordered_map<std::string, std::string> &config) {
   std::vector<std::vector<int>> indices_for_threads(
       static_cast<size_t>(num_threads));
 
-  // Assign shuffled datapoint selection indices for each thread
+  // Generate a shuffled data access order for each thread
   for (int j = 0; j < num_threads; j++) {
     std::vector<int> indices(num_datapoints);
     for (int i = 0; i < static_cast<int>(num_datapoints); i++) {
@@ -206,8 +184,9 @@ void run_benchmark(std::unordered_map<std::string, std::string> &config) {
   BenchMetrics bench_metrics(TEST_APPLICATION_LABEL);
   std::vector<std::thread> threads;
   for (int j = 0; j < num_threads; j++) {
+    std::vector<std::vector<double>> thread_datapoints(datapoints);
     std::thread thread([&]() {
-      send_predictions(config, qp, datapoints, labels, bench_metrics, j,
+      send_predictions(config, qp, thread_datapoints, bench_metrics, j,
                        indices_for_threads[j]);
     });
     threads.push_back(std::move(thread));
@@ -237,7 +216,7 @@ int main(int argc, char *argv[]) {
 
   std::vector<std::string> desired_vars = {
       CIFAR_DATA_PATH,    NUM_BATCHES,          REQUEST_BATCH_DELAY_MICROS,
-      LATENCY_OBJECTIVE,  REPORT_DELAY_SECONDS, REPORTS_PATH,
+      LATENCY_OBJECTIVE,  REPORT_DELAY_SECONDS, BENCHMARK_REPORT_PATH,
       POISSON_DELAY,      MODEL_NAME,           MODEL_VERSION,
       REQUEST_BATCH_SIZE, NUM_THREADS,          PREVENT_CACHE_HITS};
   if (!json_specified) {
