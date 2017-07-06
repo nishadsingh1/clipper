@@ -18,10 +18,10 @@ cd $DIR
 
 # If the IP env variable is not defined, attempt to set it
 # to the current AWS host's IP.
-if [ -z $IP ]; then
+if [ -z ${IP+x} ]; then
 	. export_aws_ip.sh
 fi
-	
+
 . set_bench_env_vars.sh $MODEL_NAME $MODEL_VERSION $IP
 
 echo "Starting noop_container"
