@@ -24,8 +24,12 @@ if [ $# -eq 0 ]; then
 	time docker build -t clipper/sum-bench -f SumBenchDockerfile ./
 	time docker build  -t clipper/noop-bench -f NoopBenchDockerfile ./
 else
-	time docker build -t clipper/sum-bench -f SumBenchDockerfile ./ --build-arg model_name=$1 --build-arg model_version=$2
-	time docker build  -t clipper/noop-bench -f NoopBenchDockerfile ./ --build-arg model_name=$3 --build-arg model_version=$4
+	echo $1
+	echo $2
+	echo $3
+	echo $4
+	time docker build -t clipper/sum-bench -f SumBenchDockerfile ./ --build-arg MODEL_NAME="$1" --build-arg MODEL_VERSION="$2"
+	time docker build  -t clipper/noop-bench -f NoopBenchDockerfile ./ --build-arg MODEL_NAME="$3" --build-arg MODEL_VERSION="$4"
 fi
 
 cd -

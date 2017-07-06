@@ -19,7 +19,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Let the user start this script from anywhere in the filesystem.
 cd $DIR
 
-. setup_bench_arg_exporter.sh
+. set_bench_env_vars.sh
 
 echo "Starting sum_container"
 python ../containers/python/sum_container.py 

@@ -32,27 +32,40 @@ Our SKLearn model depends on the CIFAR10 Python dataset for training. In order t
 
 The benchmarking tool will send requests through Clipper to a model. You'll want to deploy this model in a container that implements Clipper's Model-Container RPC interface.
 
-You can also use one of our predefined model-container scripts:
+You can also use one of our predefined model-container scripts. Steps detailing how to do can be found below in this section.
 
-- If you want to run the model outside of a Docker container
+When using these scripts you'll have the ability to set `model_name`, `model_version`, and `clipper_ip` variables. All three are needed for the benchmarking tool's Clipper instance to connect to your model-container. 
 
-  - [`bench/setup_noop_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_noop_bench.sh) runs the [`noop_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/noop_container.py)
-  - [`bench/setup_sum_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_sum_bench.sh) runs the [`sum_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sum_container.py)
-  - [`bench/setup_sklearn_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_sklearn_bench.sh) runs the [`sklearn_cifar_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sklearn_cifar_container). If you wish to use this option, remember to download the CIFAR10 python dataset and run
-  ```sh
-  ./setup_bench.sh <path_to_cifar_python_dataset>
-  ```
-where `<path_to_cifar_python_dataset>` is the path to the **directory** containing a parsed CIFAR10 CSV data file with name `cifar_train.data`.
+- `model_version` and `model_name` should match values defined in your JSON configuration file (discussed in the next section)
+- If your model-container will be running on a different host than the benchmarking script, `clipper_ip` should be set to the IP address of the benchmarking script's host. Otherwise, it can be set to`"localhost"`.
 
-- If you want to deploy the model in a Docker container on an AWS instance, you'll need to build the model container Docker image.
-  - Create the Docker images for the [`noop_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/noop_container.py)  and [`sum_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sum_container.py) by running `./bench/build_bench_docker_images.sh`.
-  - Run `docker run <image_id>` on the same host that the benchmarking tool will be run from.
+- If you want to run the model outside of a Docker container (`model_version` is `1` and `clipper_ip` is `localhost` by default):
 
-When creating your JSON configuration file (the whole procedure is detailed in the section below), you'll need to provide a `model_name` and `model_version`. When using one of our predefined model-container scripts, set the `model_version` to 1 and `model_name` to:
+  - [`bench/setup_noop_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_noop_bench.sh) runs the [`noop_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/noop_container.py). The default `model_name` is `"bench_noop"`.
+  
+      ./bench/setup_noop_bench.sh [<model_name> <model_version>]  
+    
+  - [`bench/setup_sum_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_sum_bench.sh) runs the [`sum_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sum_container.py). The default `model_name` is `"bench_sum"`.
 
-- `bench_noop` for the [`noop_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/noop_container.py)
-- `bench_sum` for the [`sum_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sum_container.py)
-- `bench_sklearn_cifar` for the [`sklearn_cifar_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sklearn_cifar_container)
+       ./bench/setup_sum_bench.sh [<model_name> <model_version>]  
+  
+  - [`bench/setup_sklearn_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_sklearn_bench.sh) runs the [`sklearn_cifar_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sklearn_cifar_container). If you wish to use this option, remember to download the CIFAR10 python dataset first. The default `model_name` is `"bench_sklearn_cifar"`.
+
+    
+      ./bench/setup_sklearn_bench.sh <path_to_cifar_python_dataset> [[<model_name> <model_version>] [<clipper_ip>]]
+
+    Note that `<path_to_cifar_python_dataset>` should be the path to the **directory** containing a parsed CIFAR10 CSV data file with name `cifar_train.data`.
+
+- If you want to deploy the model in a Docker container, you'll need to build the model container Docker image (`model_version` is `1` by default):
+  - Create the Docker images for the [`noop_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/noop_container.py)  and [`sum_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sum_container.py). The default names for each model are the same as the ones listed above.
+
+       ./bench/build_bench_docker_images.sh
+  
+  - Run the container on the same host that the benchmarking tool will be run from:
+  
+        docker run [-e MODEL_NAME=<nondefault_model_name>] [-e MODEL_VERSION=<nondefault_model_version>] [-e IP=<non-aws-clipper-ip>] <image_id>
+        
+    If you do not supply an `IP` environment variable in your `docker run ...` command, our script will assume you are on an AWS instance and attempt to grab its IP address.
 
 
 ## Define your benchmarking parameters
@@ -67,7 +80,7 @@ Create a JSON configuration file that specifies values for the following paramet
 - **poisson_delay**: `"true"` if you wish for the delays between request batches to be drawn from a poisson distribution with mean `request_batch_delay_micros`. `"false"` if you wish for the delay between request batches to be uniform.
 - **prevent\_cache_hits**: `"true"` if you wish for the script to modify datapoints (possibly at the expense of prediction accuracy) in order to prevent hitting Clipper's internal prediction cache. `"false"` otherwise.
 - **latency_objective**: The latency objective for the app that will be created, in microseconds
-- **benchmark_\report_path**: Path to the file in which you want your benchmarking reports saved
+- **benchmark_report_path**: Path to the file in which you want your benchmarking reports saved
 - **report\_delay_seconds**: The delay between each flush of benchmarking metrics to your reports file, in seconds. At each flush, the metrics will reset.
 - **model_name**: The name of the model Clipper should connect to. Note that this must be the same as the model name your model-container uses.
 - **model_version**: Your model's version. Again, this must be the same version that your model-container uses.
@@ -91,19 +104,19 @@ Your JSON config file should look like:
 }
 ```
 
-If a configuration file is not specified, the benchmark will prompt you for the values of these attributes at runtime.
+We have provided a template for your config file: [config.json.template](./config.json.template).
 
 ## Run the benchmarking tool
-**These steps are given relative to the main clipper source directory.**
+**These instructions are given relative to the main clipper source directory.**
 
 1. Build the Clipper source for release: 
-`./configure --release`, `cd release && make`
+`./configure --release && cd release && make generic_bench`
 
-2. Confirm you have a Redis server running. If you do not, run `redis-server`
+2. Confirm you have a Redis server running. If you do not, run `redis-server `or `docker run -d -p 6379:6379 redis:alpine`
 
 3. Confirm your model-container is running. If it is not, follow the instructions in the "Deploy up a model container for querying" section.
 
-4. Run the tool with your JSON configuration file: `./release/src/benchmarks/generic_bench -f <path_to_your_config_file>`
+4. Run the benchmark: `./release/src/benchmarks/generic_bench -f <path_to_your_config_file>`
   
 5. Check the logs/output from your model container to confirm it's being queried
 
