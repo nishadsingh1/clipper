@@ -11,7 +11,7 @@ DEFAULT_CLIPPER_MODEL_PATH="model/"
 DEFAULT_CLIPPER_IP="localhost"
 
 if [ $# -ne 0 ] && [ $# -ne 2 ] && [ $# -ne 3 ]; then
-	echo "Usage: ./set_bench_env_vars.sh [[<model_name> <model_version>] [<clipper_ip>]]"
+	echo "Usage: ./set_bench_env_vars.sh [[<model_name> <model_version> [<clipper_ip>]]]"
 	exit 1
 fi
 

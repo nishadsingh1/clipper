@@ -11,7 +11,7 @@ DEFAULT_MODEL_NAME="bench_sklearn_cifar"
 DEFAULT_MODEL_VERSION=1
 
 if [ $# -ne 1 ] && [ $# -ne 3 ]; then
-	echo "Usage: ./bench/setup_sklearn_bench.sh <path_to_cifar_python_dataset> [[<model_name> <model_version>] [<clipper_ip>]]"
+	echo "Usage: ./bench/setup_sklearn_bench.sh <path_to_cifar_python_dataset> [[<model_name> <model_version> [<clipper_ip>]]]"
 	exit 1
 fi
 

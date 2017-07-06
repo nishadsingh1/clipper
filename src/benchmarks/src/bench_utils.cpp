@@ -11,13 +11,11 @@ using namespace clipper;
 
 namespace bench_utils {
 
-/* Number of datapoints in any .bin file */
+/* Number of datapoints in downloaded test*.bin files */
 constexpr int NUM_CIFAR_DATAPOINTS = 10000;
 constexpr int NUM_CIFAR_FEATURES = 3072;
 constexpr int CIFAR_PLANE_INDEX = 0;
 constexpr int CIFAR_BIRD_INDEX = 2;
-constexpr double SKLEARN_PLANE_LABEL = 1;
-constexpr double SKLEARN_BIRD_LABEL = 0;
 
 BenchMetrics::BenchMetrics(std::string app_name) {
   latency_ = clipper::metrics::MetricsRegistry::get_metrics().create_histogram(

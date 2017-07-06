@@ -89,7 +89,7 @@ void send_predictions(std::unordered_map<std::string, std::string> &config,
       boost::future<Response> prediction = qp.predict(q);
       bench_metrics.request_throughput_->mark(1);
 
-      prediction.then([app_metrics](boost::future<Response> f) {
+      prediction.then([bench_metrics](boost::future<Response> f) {
         Response r = f.get();
 
         // Update metrics

@@ -43,16 +43,16 @@ When using these scripts you'll have the ability to set `model_name`, `model_ver
 
   - [`bench/setup_noop_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_noop_bench.sh) runs the [`noop_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/noop_container.py). The default `model_name` is `"bench_noop"`.
   
-      ./bench/setup_noop_bench.sh [<model_name> <model_version>]  
+      ./bench/setup_noop_bench.sh [[<model_name> <model_version> [<clipper_ip>]]] 
     
   - [`bench/setup_sum_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_sum_bench.sh) runs the [`sum_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sum_container.py). The default `model_name` is `"bench_sum"`.
 
-       ./bench/setup_sum_bench.sh [<model_name> <model_version>]  
+       ./bench/setup_sum_bench.sh [[<model_name> <model_version> [<clipper_ip>]]] 
   
   - [`bench/setup_sklearn_bench.sh`](https://github.com/ucbrise/clipper/tree/develop/bench/setup_sklearn_bench.sh) runs the [`sklearn_cifar_container`](https://github.com/ucbrise/clipper/blob/develop/containers/python/sklearn_cifar_container). If you wish to use this option, remember to download the CIFAR10 python dataset first. The default `model_name` is `"bench_sklearn_cifar"`.
 
     
-      ./bench/setup_sklearn_bench.sh <path_to_cifar_python_dataset> [[<model_name> <model_version>] [<clipper_ip>]]
+      ./bench/setup_sklearn_bench.sh <path_to_cifar_python_dataset> [[<model_name> <model_version> [<clipper_ip>]]]
 
     Note that `<path_to_cifar_python_dataset>` should be the path to the **directory** containing a parsed CIFAR10 CSV data file with name `cifar_train.data`.
 
